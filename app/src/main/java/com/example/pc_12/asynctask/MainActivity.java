@@ -1,6 +1,10 @@
 package com.example.pc_12.asynctask;
 
+import android.content.Context;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -8,7 +12,9 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
@@ -19,64 +25,72 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         cargador=(ProgressBar) findViewById(R.id.cargador);
         texto=(TextView) findViewById(R.id.texto);
         boton=(Button) findViewById(R.id.boton);
     }
 
+    // Validar conexion a internet
+    public boolean isOnline(){
+        ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);// establece servicio de conexion
+        NetworkInfo network= connectivityManager.getActiveNetworkInfo();// trae el dato de la conexion
+
+        if (network != null && network.isConnectedOrConnecting()){
+            return true;
+        }else{ return false;}
+    }
+
     public void onButtonStart(View view){
-        //
-        new MyTask().execute(60);
+        if(isOnline()){
+            MyTask task = new MyTask();
+            task.execute("http://186.116.10.48/zeusacad/img/usuarios.xml");
+        }else {
+            Toast.makeText(this,"Sin Conexion",Toast.LENGTH_SHORT).show();// manejo de alertas
+            }
+    }
+
+    public void cargarDatos(String dato){
+        texto.append(dato+"\n");
     }
 
     // para menejo de clases actividades en segundo plano a traves de metodo AsyncTask
-    protected class MyTask extends AsyncTask<Integer, Integer, String>{
-        //
+    public class MyTask extends AsyncTask<String, String, String>{
 
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
             cargador.setVisibility(View.VISIBLE);
+            cargarDatos("Iniciar Tarea");
 
-        }
+    }
 
         // metodo mas importante al ejecutar una tarea
         @Override
-        protected String doInBackground(Integer... params) {
-
-            int max = params[0];
-
-            for(int i=0;i<=max;i++){
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                publishProgress(i); // con solo este metodo se comunica el metodo backgraound y progressUpdate
-
+        protected String doInBackground(String... params) {
+            String contend=null;
+            try {
+                contend = HttpManager.getData(params[0]);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-
-            return "Fin";
+            return contend;
         }
 
         @Override
-        protected void onProgressUpdate(Integer... values) {
+        protected void onProgressUpdate(String... values) {
             super.onProgressUpdate(values);
-            int contador = values[0];
-            String cadena = "Contador: "+contador;
-            texto.setText(cadena);
-            texto.setTextSize(contador);
-            Random myColor = new Random();
-            texto.setTextColor(Color.rgb(myColor.nextInt(255), myColor.nextInt(255), myColor.nextInt(255)));
+            cargarDatos(values[0]);
         }
 
         @Override
         protected void onPostExecute(String s) {
             super.onPostExecute(s);
-            texto.append("\n"+s);
-            cargador.setVisibility(View.INVISIBLE);
+            cargador.setVisibility(View.GONE);
+            cargarDatos(s);
         }
     }
 
